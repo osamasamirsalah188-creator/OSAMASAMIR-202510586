@@ -1,0 +1,232 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+class User {
+private:
+    string name;
+    string email;
+    string phone;
+public:
+    User() = default;
+    User(const string &name, const string &email, const string &phone)
+        : name(name), email(email), phone(phone) {}
+
+    // getters
+    string getName() const { return name; }
+    string getEmail() const { return email; }
+    string getPhone() const { return phone; }
+
+    // setters
+    void setName(const string &n) { name = n; }
+    void setEmail(const string &e) { email = e; }
+    void setPhone(const string &p) { phone = p; }
+};
+
+class VehicleOwner : public User {
+public:
+    VehicleOwner() = default;
+    VehicleOwner(const string &name, const string &email, const string &phone)
+        : User(name, email, phone) {}
+};
+
+class Vehicle {
+private:
+    string plate;
+    string type;
+    int year;
+    VehicleOwner owner;
+public:
+    Vehicle() = default;
+    Vehicle(const string &plate, const string &type, int year, const VehicleOwner &owner)
+        : plate(plate), type(type), year(year), owner(owner) {}
+
+    string getPlate() const { return plate; }
+    string getType() const { return type; }
+    int getYear() const { return year; }
+    VehicleOwner getOwner() const { return owner; }
+};
+
+// Validation helpers
+bool validEmail(const string &email) {
+    if (email.empty()) return false;
+    size_t at = email.find('@');
+    size_t dot = email.rfind('.');
+    if (at == string::npos || dot == string::npos) return false;
+    if (at == 0 || dot == 0) return false;
+    if (at + 1 >= dot) return false;
+    if (dot + 1 >= email.size()) return false;
+    return true;
+}
+
+bool validPhone(const string &phone) {
+    if (phone.size() != 13) return false;
+    if (phone.rfind("+250", 0) != 0) return false;
+    for (size_t i = 1; i < phone.size(); ++i) {
+        if (!isdigit((unsigned char)phone[i])) return false;
+    }
+    return true;
+}
+
+bool validPlate(const string &plate) {
+    // Accept plates like RAA123A or RA123BC etc. Use regex for flexibility
+    try {
+        const regex pattern("^[A-Z]{1,3}[0-9]{3,4}[A-Z]{0,2}$");
+        return regex_match(plate, pattern);
+    } catch (...) {
+        return false;
+    }
+}
+
+string trim(const string &s) {
+    size_t a = s.find_first_not_of(" \t\r\n");
+    if (a == string::npos) return "";
+    size_t b = s.find_last_not_of(" \t\r\n");
+    return s.substr(a, b - a + 1);
+}
+
+void writeRecord(const Vehicle &v) {
+    ofstream ofs("records.txt", ios::app);
+    if (!ofs) {
+        cout << "Cannot open records.txt for writing\n";
+        return;
+    }
+    ofs << v.getPlate() << ',' << v.getType() << ',' << v.getYear() << ','
+        << v.getOwner().getName() << ',' << v.getOwner().getEmail() << ','
+        << v.getOwner().getPhone() << '\n';
+    ofs.close();
+}
+
+vector<Vehicle> readAllRecords() {
+    vector<Vehicle> out;
+    ifstream ifs("records.txt");
+    if (!ifs) return out;
+    string line;
+    while (getline(ifs, line)) {
+        if (trim(line).empty()) continue;
+        stringstream ss(line);
+        string plate, type, yearStr, ownerName, email, phone;
+        if (!getline(ss, plate, ',')) continue;
+        if (!getline(ss, type, ',')) continue;
+        if (!getline(ss, yearStr, ',')) continue;
+        if (!getline(ss, ownerName, ',')) continue;
+        if (!getline(ss, email, ',')) continue;
+        if (!getline(ss, phone, '\n')) phone = "";
+        plate = trim(plate);
+        type = trim(type);
+        yearStr = trim(yearStr);
+        ownerName = trim(ownerName);
+        email = trim(email);
+        phone = trim(phone);
+        int year = 0;
+        try { year = stoi(yearStr); } catch (...) { year = 0; }
+        VehicleOwner owner(ownerName, email, phone);
+        Vehicle v(plate, type, year, owner);
+        out.push_back(v);
+    }
+    return out;
+}
+
+void displayAll() {
+    auto records = readAllRecords();
+    if (records.empty()) {
+        cout << "No records found.\n";
+        return;
+    }
+    cout << left << setw(12) << "Plate" << setw(12) << "Type" << setw(6) << "Year"
+         << setw(22) << "Owner" << setw(28) << "Email" << setw(14) << "Phone" << '\n';
+    cout << string(94, '-') << '\n';
+    for (auto &v : records) {
+        cout << left << setw(12) << v.getPlate()
+             << setw(12) << v.getType()
+             << setw(6) << v.getYear()
+             << setw(22) << v.getOwner().getName()
+             << setw(28) << v.getOwner().getEmail()
+             << setw(14) << v.getOwner().getPhone() << '\n';
+    }
+}
+
+void addRecordInteractive() {
+    string plate, type, yearStr, ownerName, email, phone;
+    while (true) {
+        cout << "Enter plate number (e.g. RAA123A): ";
+        getline(cin, plate);
+        plate = trim(plate);
+        for (auto &c : plate) c = toupper((unsigned char)c);
+        if (validPlate(plate)) break;
+        cout << "Invalid plate format. Try again.\n";
+    }
+    cout << "Enter vehicle type (e.g. Sedan): ";
+    getline(cin, type);
+    type = trim(type);
+    int year = 0;
+    while (true) {
+        cout << "Enter year (e.g. 2020): ";
+        getline(cin, yearStr);
+        yearStr = trim(yearStr);
+        try { year = stoi(yearStr); break; } catch (...) { cout << "Invalid year.\n"; }
+    }
+    cout << "Enter owner name: ";
+    getline(cin, ownerName);
+    ownerName = trim(ownerName);
+    while (true) {
+        cout << "Enter email: ";
+        getline(cin, email);
+        email = trim(email);
+        if (validEmail(email)) break;
+        cout << "Invalid email. Try again.\n";
+    }
+    while (true) {
+        cout << "Enter phone (+2507XXXXXXXX): ";
+        getline(cin, phone);
+        phone = trim(phone);
+        if (validPhone(phone)) break;
+        cout << "Invalid phone. Try again.\n";
+    }
+    VehicleOwner owner(ownerName, email, phone);
+    Vehicle v(plate, type, year, owner);
+    writeRecord(v);
+    cout << "Record saved.\n";
+}
+
+void searchByPlate() {
+    cout << "Enter plate to search: ";
+    string plate;
+    getline(cin, plate);
+    for (auto &c : plate) c = toupper((unsigned char)c);
+    plate = trim(plate);
+    auto records = readAllRecords();
+    for (auto &v : records) {
+        string p = v.getPlate();
+        for (auto &c : p) c = toupper((unsigned char)c);
+        if (p == plate) {
+            cout << "Found record:\n";
+            cout << "Plate: " << v.getPlate() << '\n';
+            cout << "Type: " << v.getType() << '\n';
+            cout << "Year: " << v.getYear() << '\n';
+            cout << "Owner: " << v.getOwner().getName() << '\n';
+            cout << "Email: " << v.getOwner().getEmail() << '\n';
+            cout << "Phone: " << v.getOwner().getPhone() << '\n';
+            return;
+        }
+    }
+    cout << "Vehicle not found in the system.\n";
+}
+
+int main() {
+    while (true) {
+        cout << "\nVehicle Registration System\n";
+        cout << "1. Add record\n";
+        cout << "2. Search by plate\n";
+        cout << "3. Display all records\n";
+        cout << "4. Exit\n";
+        cout << "Choose option: ";
+        string opt;
+        getline(cin, opt);
+        if (opt == "1") addRecordInteractive();
+        else if (opt == "2") searchByPlate();
+        else if (opt == "3") displayAll();
+        else if (opt == "4") break;
+        else cout << "Invalid option.\n";
+    }
+    return 0;
+}
